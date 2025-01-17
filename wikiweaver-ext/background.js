@@ -130,8 +130,8 @@ async function HandleMessageConnect(msg) {
   const userid = await GetUserIdForLobby(options.code);
 
   const body = {
-    code: options.code,
-    username: options.username,
+    code: msg.code,
+    username: msg.username,
     userid: userid,
   };
 
@@ -139,7 +139,14 @@ async function HandleMessageConnect(msg) {
 
   if (response.Success) {
     await SetPageCount(0);
-    await SetUserIdForLobby(options.code, response.UserID);
+    await SetUserIdForLobby(response.Code, response.UserID);
+
+    await chrome.storage.local.set(
+      {
+        code: response.Code,
+        username: response.Username,
+      }
+    );
   }
 
   await UpdateBadge(response.Success);
@@ -320,4 +327,16 @@ chrome.runtime.onInstalled.addListener(async () => {
 
   const url = options.url || defaultdomain;
   await chrome.storage.local.set({ url });
+
+  if ((await chrome.scripting.getRegisteredContentScripts({ ids: ["join-lobby"] })).length <= 0) {
+    const scripts = [
+      {
+        id: "join-lobby",
+        js: ["/content/join-lobby.js"],
+        matches: [`${url}/*`],
+      }
+    ]
+
+    await chrome.scripting.registerContentScripts(scripts);
+  }
 });
