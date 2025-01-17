@@ -65,7 +65,16 @@ async function HandleJoinClicked(e) {
   });
 
   IndicateConnectionStatus({ status: "pending" });
-  await chrome.runtime.sendMessage({ type: "connect" });
+
+  const { code, username } = await chrome.storage.local.get();
+
+  await chrome.runtime.sendMessage(
+    {
+      type: "connect",
+      code,
+      username,
+    }
+  );
 }
 
 async function HandleLeaveClicked(e) {
@@ -133,6 +142,9 @@ async function HandleMessageConnect(msg) {
   } else {
     await UnregisterContentScripts();
   }
+
+  document.getElementById("code").textContent = msg.Code;
+  document.getElementById("username").textContent = msg.Username;
 }
 
 chrome.runtime.onMessage.addListener(async (msg) => {
@@ -158,13 +170,15 @@ const ContentScripts = [
 ];
 
 async function RegisterContentScripts() {
-  if ((await chrome.scripting.getRegisteredContentScripts()).length <= 0) {
+  if ((await chrome.scripting.getRegisteredContentScripts({ ids: ["content"] })).length <= 0) {
     await chrome.scripting.registerContentScripts(ContentScripts);
   }
 }
 
 async function UnregisterContentScripts() {
-  await chrome.scripting.unregisterContentScripts();
+  if ((await chrome.scripting.getRegisteredContentScripts({ ids: ["content"] })).length > 0) {
+    await chrome.scripting.unregisterContentScripts({ ids: ["content"] });
+  }
 }
 
 function EnableElements(elements) {
