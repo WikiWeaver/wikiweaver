@@ -33,6 +33,20 @@ let data = reef.signal({
   players: {},
 });
 
+function template_info_text() {
+  let { lobbyState } = data;
+
+  if (lobbyState !== LobbyState.SHOWING_EXAMPLE) return "";
+  return `
+      <div> Join this lobby using the extension for
+        <a href="https://addons.mozilla.org/en-US/firefox/addon/wikiweaver/"
+          target="_blank" rel="noopener noreferrer">Firefox</a> or
+        <a href="https://chromewebstore.google.com/detail/wikiweaver/apmgfgikhdikmeljhhomehnkhabiidmp"
+          target="_blank" rel="noopener noreferrer">Chrome</a>.
+      </div>
+  `;
+}
+
 function template_code_and_countdown() {
   return `
     ${template_code()}
@@ -61,7 +75,9 @@ function template_countdown() {
   function Disabled() {
     return (connectionStatus !== ConnectionStatus.CONNECTED
       || !isHost
-      || lobbyState === LobbyState.RACING) ? "disabled" : "";
+      || lobbyState === LobbyState.RACING
+      || lobbyState === LobbyState.SHOWING_EXAMPLE
+    ) ? "disabled" : "";
   }
 
   return `
@@ -76,7 +92,7 @@ function template_countdown() {
 
 function template_start_and_goal_page() {
   return `
-    <div class="text">Start a race from</div>
+    <div class="text">Race from</div>
       <div class="flex-horizontal-container">
         ${template_start_page()}
       </div>
@@ -105,7 +121,9 @@ function template_start_page() {
   function Disabled() {
     return (connectionStatus !== ConnectionStatus.CONNECTED
       || !isHost
-      || lobbyState === LobbyState.RACING) ? "disabled" : "";
+      || lobbyState === LobbyState.RACING
+      || lobbyState === LobbyState.SHOWING_EXAMPLE
+    ) ? "disabled" : "";
   }
 
   return `
@@ -124,7 +142,9 @@ function template_goal_page() {
   function Disabled() {
     return (connectionStatus !== ConnectionStatus.CONNECTED
       || !isHost
-      || lobbyState === LobbyState.RACING) ? "disabled" : "";
+      || lobbyState === LobbyState.RACING
+      || lobbyState === LobbyState.SHOWING_EXAMPLE
+    ) ? "disabled" : "";
   }
 
   return `
@@ -143,68 +163,32 @@ function dispatchClick(event) {
 
   if (event.target.id === "end-button")
     EndRace();
-
-  if (event.target.id === "reset-button")
-    HandleResetClicked();
 }
 
 function template_primary_buttons() {
   return `
-    ${template_start_button()}
-    ${template_end_button()}
-    ${template_reset_button()}`;
+    ${template_start_end_button()}`;
 }
 
-function template_start_button() {
+function template_start_end_button() {
   let { connectionStatus, isHost, lobbyState } = data;
+
+  function IsStart() {
+    return lobbyState !== LobbyState.RACING;
+  }
 
   function Disabled() {
     return (connectionStatus !== ConnectionStatus.CONNECTED
-      || !isHost
-      || lobbyState === LobbyState.SHOWING_EXAMPLE
-      || lobbyState === LobbyState.RACING) ? "disabled" : "";
+      || lobbyState == LobbyState.SHOWING_EXAMPLE
+      || !isHost) ? "disabled" : "";
   }
 
   return `
     <button
-      id="start-button"
+      id="${IsStart() ? "start" : "end"}-button"
       class="button box text"
       ${Disabled()}>
-        start
-    </button>`
-}
-
-function template_end_button() {
-  let { connectionStatus, isHost, lobbyState } = data;
-
-  function Disabled() {
-    return (connectionStatus !== ConnectionStatus.CONNECTED
-      || !isHost
-      || lobbyState !== LobbyState.RACING) ? "disabled" : "";
-  }
-
-  return `
-    <button
-      id="end-button"
-      class="button box text"
-      ${Disabled()}>
-        end
-    </button>`
-}
-
-function template_reset_button() {
-  let { isHost } = data;
-
-  function Disabled() {
-    return (!isHost) ? "disabled" : "";
-  }
-
-  return `
-    <button
-      id="reset-button"
-      class="button box text"
-      ${Disabled()}>
-        reset
+        ${IsStart() ? "Start Race" : "End Race"}
     </button>`
 }
 
@@ -255,6 +239,8 @@ function template_leaderboard_entries() {
   </tr>`
   }).join("");
 }
+
+reef.component("#info-text", template_info_text);
 
 let codeCountdownElem = document.querySelector("#code-and-countdown");
 reef.component(codeCountdownElem, template_code_and_countdown);
@@ -371,15 +357,6 @@ async function EndRace() {
     type: "end",
   };
   SendMessage(endMessage);
-}
-
-async function HandleResetClicked() {
-  if (!data.isHost) return;
-
-  let resetMessage = {
-    type: "reset",
-  };
-  SendMessage(resetMessage);
 }
 
 function HandleRedrawClicked() {
